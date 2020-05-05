@@ -14,7 +14,7 @@ func TestCheckNeedsWrapping(t *testing.T) {
 	assert.False(t, New().checkNeedsWrapping("((word1 OR word2) AND (word3 OR word4))"))
 }
 
-func TestOpenParenthesis(t *testing.T) {
+func TestParseQuery(t *testing.T) {
 	cases := []struct {
 		query    string
 		msg      string
@@ -37,7 +37,16 @@ func TestOpenParenthesis(t *testing.T) {
 			err:      true,
 		},
 		{
-			query: "(field1[exact]:word1) OR word2 AND (word3 OR word45)",
+			query: "field1{modifier}[exact]:word1 OR word2 AND (word3 OR word45)",
+		},
+		{
+			query: "(field1{modifier}[exact]:word1 OR word2) AND (word3 OR word45)",
+		},
+		{
+			query:    "(field1{modifier}[exact]:word1) OR word2 AND (word3 OR word45)",
+			msg:      "invalid query syntax",
+			position: 0,
+			err:      true,
 		},
 		{
 			query:    "(field1exact]:word1) OR word2 AND (word3 OR word45)",
@@ -50,7 +59,7 @@ func TestOpenParenthesis(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.query, func(t *testing.T) {
-			_, err := New().Parse(tc.query)
+			tree, err := New().Parse(tc.query)
 
 			if tc.err {
 				require.Error(t, err)
@@ -59,6 +68,7 @@ func TestOpenParenthesis(t *testing.T) {
 				assert.Equal(t, tc.char, err.(ValidationError).Char())
 			} else {
 				require.NoError(t, err)
+				require.NotNil(t, tree)
 			}
 		})
 	}

@@ -26,15 +26,19 @@ type Parser struct {
 	allOpenParens           map[string]bool
 	closeToOpenParens       map[string]string
 	allCloseParens          map[string]bool
+	modifierCloseParens     string
+	modifierOpenParens      string
 }
 
 type Options struct {
-	openParens       string
-	closeParens      string
-	fieldOpenParens  string
-	fieldCloseParens string
-	fieldDelimiter   string
-	operators        []string
+	openParens          string
+	closeParens         string
+	fieldOpenParens     string
+	fieldCloseParens    string
+	fieldDelimiter      string
+	operators           []string
+	modifierOpenParens  string
+	modifierCloseParens string
 }
 
 type Option func(o *Options)
@@ -43,6 +47,9 @@ func New(opts ...Option) *Parser {
 	options := Options{
 		openParens:  "(",
 		closeParens: ")",
+
+		modifierOpenParens:  "{",
+		modifierCloseParens: "}",
 
 		fieldDelimiter:   ":",
 		fieldOpenParens:  "[",
@@ -74,21 +81,27 @@ func New(opts ...Option) *Parser {
 		fieldOpenParens:  options.fieldOpenParens,
 		fieldCloseParens: options.fieldCloseParens,
 
+		modifierOpenParens:  options.modifierOpenParens,
+		modifierCloseParens: options.modifierCloseParens,
+
 		operatorsOrCloseParens: operatorsOrCloseParens,
 
 		allOpenParens: map[string]bool{
-			options.openParens:      true,
-			options.fieldOpenParens: true,
+			options.openParens:         true,
+			options.fieldOpenParens:    true,
+			options.modifierOpenParens: true,
 		},
 
 		allCloseParens: map[string]bool{
-			options.closeParens:      true,
-			options.fieldCloseParens: true,
+			options.closeParens:         true,
+			options.fieldCloseParens:    true,
+			options.modifierCloseParens: true,
 		},
 
 		closeToOpenParens: map[string]string{
-			options.closeParens:      options.openParens,
-			options.fieldCloseParens: options.fieldOpenParens,
+			options.closeParens:         options.openParens,
+			options.fieldCloseParens:    options.fieldOpenParens,
+			options.modifierCloseParens: options.modifierOpenParens,
 		},
 	}
 }
@@ -155,6 +168,8 @@ type Part struct {
 	field    string
 	operator string
 	data     string
+	modifier string
+	position int
 }
 
 func (p *Parser) splitQuery(query string) []Part {
@@ -178,12 +193,12 @@ func (p *Parser) splitQuery(query string) []Part {
 		}
 
 		if p.parentheses[character] {
-			parts = append(parts, Part{data: character})
+			parts = append(parts, Part{data: character, position: charIndex})
 			charIndex++
 			continue
 		}
 
-		field, fieldOperator, word := "", "", ""
+		field, fieldOperator, modifier, word := "", "", "", ""
 		partIndex := charIndex
 		for partIndex < len(query) {
 			character = string(query[partIndex])
@@ -195,11 +210,12 @@ func (p *Parser) splitQuery(query string) []Part {
 						field:    field,
 						operator: fieldOperator,
 						data:     word,
+						modifier: modifier,
 						partType: PartTypeData,
 					})
 				}
 
-				field, fieldOperator, word = "", "", ""
+				field, fieldOperator, modifier, word = "", "", "", ""
 				charIndex = partIndex - 1
 				break
 			}
@@ -211,12 +227,13 @@ func (p *Parser) splitQuery(query string) []Part {
 						parts = append(parts, Part{
 							field:    field,
 							operator: fieldOperator,
+							modifier: modifier,
 							data:     word,
 							partType: PartTypeData,
 						})
 					}
 
-					field, fieldOperator, word = "", "", ""
+					field, fieldOperator, modifier, word = "", "", "", ""
 					charIndex = partIndex - 1
 
 					break
@@ -229,6 +246,13 @@ func (p *Parser) splitQuery(query string) []Part {
 				if strings.HasSuffix(field, p.fieldCloseParens) {
 					openParensIndex := strings.Index(field, p.fieldOpenParens)
 					fieldOperator = field[openParensIndex+1 : len(field)-1]
+					field = field[:openParensIndex]
+				}
+
+				if strings.Contains(field, p.modifierCloseParens) {
+					openParensIndex := strings.Index(field, p.modifierOpenParens)
+					closeParensIndex := strings.Index(field, p.modifierCloseParens)
+					modifier = field[openParensIndex+1 : closeParensIndex]
 					field = field[:openParensIndex]
 				}
 
@@ -289,6 +313,10 @@ func (p *Parser) Parse(query string) (*Node, error) {
 		}
 	}
 
+	if err := p.checkForErrors(tree); err != nil {
+		return nil, err
+	}
+
 	if len(splittedQuery) == 3 {
 		return tree.accessLeft(), nil
 	}
@@ -324,4 +352,21 @@ func (p *Parser) countPartsCapacity(query string) int {
 	}
 
 	return capacity * 2
+}
+
+func (p *Parser) checkForErrors(node *Node) error {
+	if node.Data.partType == PartTypeParenthesis {
+		return ValidationError{
+			message:  "invalid query syntax",
+			position: node.Data.position,
+		}
+	}
+
+	for _, child := range node.Children {
+		if err := p.checkForErrors(child); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

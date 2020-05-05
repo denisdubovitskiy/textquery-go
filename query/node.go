@@ -1,7 +1,5 @@
 package query
 
-type NodeType int
-
 type Node struct {
 	Data     Part
 	Children []*Node
