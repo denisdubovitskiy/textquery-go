@@ -1,57 +1,45 @@
+// Placed here due to the lack of generics
+
 package textquery
 
-type tokenStack []Token
+type tokenStack []*Token
 
 func newTokenStack(capacity int) tokenStack {
 	return make(tokenStack, 0, capacity)
 }
 
-func (s *tokenStack) isEmpty() bool {
-	return len(*s) == 0
+func (stack *tokenStack) isEmpty() bool {
+	return len(*stack) == 0
 }
 
-func (s *tokenStack) push(str Token) {
-	*s = append(*s, str)
+func (stack *tokenStack) push(token *Token) {
+	*stack = append(*stack, token)
 }
 
-func (s *tokenStack) pop() Token {
-	index := len(*s) - 1
-	element := (*s)[index]
-	*s = (*s)[:index]
-	return element
+func (stack *tokenStack) pop() *Token {
+	index := len(*stack) - 1
+	token := (*stack)[index]
+	*stack = (*stack)[:index]
+	return token
 }
-func (s *tokenStack) peek() Token {
-	index := len(*s) - 1
-	element := (*s)[index]
-	return element
-}
-
-func (s *tokenStack) size() int {
-	return len(*s)
+func (stack *tokenStack) peek() *Token {
+	index := len(*stack) - 1
+	return (*stack)[index]
 }
 
-type nodeStack []Node
+type nodeStack []*Node
 
 func newNodeStack(capacity int) nodeStack {
 	return make(nodeStack, 0, capacity)
 }
 
-func (s *nodeStack) isEmpty() bool {
-	return len(*s) == 0
+func (stack *nodeStack) push(node *Node) {
+	*stack = append(*stack, node)
 }
 
-func (s *nodeStack) push(str Node) {
-	*s = append(*s, str)
-}
-
-func (s *nodeStack) pop() Node {
-	index := len(*s) - 1
-	element := (*s)[index]
-	*s = (*s)[:index]
-	return element
-}
-func (s *nodeStack) peek() Node {
-	index := len(*s) - 1
-	element := (*s)[index]
-	return element
+func (stack *nodeStack) pop() *Node {
+	index := len(*stack) - 1
+	node := (*stack)[index]
+	*stack = (*stack)[:index]
+	return node
 }

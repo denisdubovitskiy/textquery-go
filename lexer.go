@@ -3,26 +3,40 @@ package textquery
 import "strings"
 
 const (
-	AND              = "AND"
-	OR               = "OR"
-	NOT              = "NOT"
-	fieldDelimiter   = ":"
-	leftParen        = "("
-	rightParen       = ")"
+	// AND ...
+	AND = "AND"
+	// OR ...
+	OR = "OR"
+	// NOT ...
+	NOT = "NOT"
+
+	// fieldDelimiter is used inside <field_name>:<field_value> constructs
+	fieldDelimiter = ":"
+
+	leftParen  = "("
+	rightParen = ")"
+
+	// replaceDelimiter is used in splitting query into parts
 	replaceDelimiter = "_-_-"
 )
 
 var (
+	// operatorReplacements has set of operators
+	// wrapped by synthetic delimiter which is then
+	// going to be used in query splitting
 	operatorReplacements = []string{
 		AND, formatReplacement(AND),
 		OR, formatReplacement(OR),
 		NOT, formatReplacement(NOT),
+
 		leftParen, formatReplacement(leftParen),
 		rightParen, formatReplacement(rightParen),
 	}
 
 	operatorReplacer = strings.NewReplacer(operatorReplacements...)
 
+	// fieldPartsReplacements is just like operatorReplacements but
+	// only used when the field delimiter has been found
 	fieldPartsReplacements = []string{
 		"[", formatReplacement("["),
 		"]", formatReplacement("]"),
@@ -34,6 +48,7 @@ var (
 	fieldPartsReplacer = strings.NewReplacer(fieldPartsReplacements...)
 )
 
+// Token ...
 type Token struct {
 	Key      string
 	Field    string
@@ -41,37 +56,38 @@ type Token struct {
 	Modifier string
 }
 
-func isOperator(token Token) bool {
-	return token.Key == AND || token.Key == OR || token.Key == NOT
+func (t *Token) isOperator() bool {
+	return t.Key == AND || t.Key == OR || t.Key == NOT
 }
 
-func isOperand(token Token) bool {
-	return token.Key != AND &&
-		token.Key != OR &&
-		token.Key != NOT &&
-		token.Key != leftParen &&
-		token.Key != rightParen
+func (t *Token) isOperand() bool {
+	return !(t.isOperator() || t.isParen())
 }
 
-func isOpenParen(token Token) bool {
-	return token.Key == leftParen
+func (t *Token) isParen() bool {
+	return t.isOpenParen() || t.isCloseParen()
 }
 
-func isCloseParen(token Token) bool {
-	return token.Key == rightParen
+func (t *Token) isOpenParen() bool {
+	return t.Key == leftParen
 }
 
-func isNot(token Token) bool {
-	return token.Key == NOT
+func (t *Token) isCloseParen() bool {
+	return t.Key == rightParen
 }
 
-func hasDelimiter(source string) bool {
+// hasFieldDelimiter checks if the source string has a delimiter
+// like field_name:value
+func hasFieldDelimiter(source string) bool {
 	return strings.Contains(source, fieldDelimiter)
 }
 
+// replace is used to replace operators to the ones
+// with synthetic marks around them for easy splitting
 func replace(query string, replacer *strings.Replacer) []string {
 	tokenized := strings.Split(replacer.Replace(query), replaceDelimiter)
-	var tokens []string
+	tokens := make([]string, 0, len(tokenized))
+
 	for _, token := range tokenized {
 		trimmed := strings.TrimSpace(token)
 		if trimmed == "" {
@@ -87,24 +103,27 @@ func tokenizeQueryByOperators(query string) []string {
 	return replace(query, operatorReplacer)
 }
 
+// tokenizeFieldParts
 func tokenizeFieldParts(field string) []string {
 	return replace(field, fieldPartsReplacer)
 }
 
-func tokenize(query string) []Token {
-	var tokens []Token
+// tokenize splits the whole query to the individual tokens
+// which include operators, parens, search phrase parts
+func tokenize(query string) []*Token {
+	var tokens []*Token
 
 	for _, token := range tokenizeQueryByOperators(query) {
 
-		if !hasDelimiter(token) {
-			tokens = append(tokens, Token{Key: token})
+		if !hasFieldDelimiter(token) {
+			tokens = append(tokens, &Token{Key: token})
 			continue
 		}
 
-		// field[operator]:value
+		// field[precedence]:value
 		fieldParts := tokenizeFieldParts(token)
 		if len(fieldParts) == 6 {
-			tokens = append(tokens, Token{
+			tokens = append(tokens, &Token{
 				Key:      fieldParts[5],
 				Field:    fieldParts[0],
 				Operator: fieldParts[2],
@@ -112,9 +131,9 @@ func tokenize(query string) []Token {
 			continue
 		}
 
-		// field{modifier}[operator]:value
+		// field{modifier}[precedence]:value
 		if len(fieldParts) == 9 {
-			tokens = append(tokens, Token{
+			tokens = append(tokens, &Token{
 				Key:      fieldParts[8],
 				Field:    fieldParts[0],
 				Operator: fieldParts[5],
@@ -127,6 +146,8 @@ func tokenize(query string) []Token {
 	return tokens
 }
 
+// formatReplacement wraps the source by synthetic wrapper
+// which is going to be used to split query
 func formatReplacement(source string) string {
 	return replaceDelimiter + source + replaceDelimiter
 }

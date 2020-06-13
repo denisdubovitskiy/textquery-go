@@ -8,27 +8,28 @@ const (
 )
 
 type (
+	// Node is a binary tree node
 	Node struct {
-		Key   Token
+		Key   *Token
 		Left  *Node
 		Right *Node
 	}
 
-	operator struct {
+	precedence struct {
 		precedence    int
 		associativity associativity
 	}
 )
 
-var operators = map[string]operator{
+var precedences = map[string]precedence{
 	NOT: {precedence: 3, associativity: right},
 	AND: {precedence: 2, associativity: left},
 	OR:  {precedence: 1, associativity: left},
 }
 
-func hasPrecedence(a, b Token) bool {
-	opA := operators[a.Key]
-	opB := operators[b.Key]
+func hasPrecedence(a, b *Token) bool {
+	opA := precedences[a.Key]
+	opB := precedences[b.Key]
 
 	isLeftAssociative := opB.associativity == left && opA.precedence >= opB.precedence
 	isRightAssociative := opB.associativity == right && opA.precedence > opB.precedence
@@ -37,39 +38,42 @@ func hasPrecedence(a, b Token) bool {
 }
 
 // shunting-yard algorithm implementation
-func parseSearchQuery(tokens []Token) []Token {
-	var reverseNotation []Token
+func parseSearchQuery(tokens []*Token) []*Token {
+	// reverse polish notation
+	var reverseNotation []*Token
+
 	operatorsStack := newTokenStack(len(tokens))
 
 	for _, token := range tokens {
-		if isOperand(token) {
+		if token.isOperand() {
 			reverseNotation = append(reverseNotation, token)
 			continue
 		}
 
-		if isOpenParen(token) {
+		if token.isOpenParen() {
 			operatorsStack.push(token)
 			continue
 		}
 
-		if isCloseParen(token) {
+		if token.isCloseParen() {
 			for {
-				current := operatorsStack.pop()
-				if isOpenParen(current) {
+				currentToken := operatorsStack.pop()
+
+				if currentToken.isOpenParen() {
 					break
 				}
 
-				reverseNotation = append(reverseNotation, current)
+				reverseNotation = append(reverseNotation, currentToken)
 			}
 
 			continue
 		}
 
-		if isOperator(token) {
+		if token.isOperator() {
 			for !operatorsStack.isEmpty() {
 				topToken := operatorsStack.peek()
 
-				if !isOperator(topToken) {
+				if !topToken.isOperator() {
 					break
 				}
 
@@ -93,34 +97,36 @@ func parseSearchQuery(tokens []Token) []Token {
 	return reverseNotation
 }
 
-func constructBinaryTree(reverseNotation []Token) Node {
+func constructBinaryTree(reverseNotation []*Token) *Node {
 	stack := newNodeStack(len(reverseNotation))
 
 	for _, token := range reverseNotation {
-		if !isOperator(token) {
-			stack.push(Node{Key: token})
+		if !token.isOperator() {
+			stack.push(&Node{Key: token})
 			continue
 		}
 
 		right := stack.pop()
 
-		if isNot(token) {
-			stack.push(Node{Key: token, Right: &right})
+		// NOT nodes have only right leaf
+		if token.Key == NOT {
+			stack.push(&Node{Key: token, Right: right})
 			continue
 		}
 
 		left := stack.pop()
 
-		stack.push(Node{
+		stack.push(&Node{
 			Key:   token,
-			Left:  &left,
-			Right: &right,
+			Left:  left,
+			Right: right,
 		})
 	}
 
 	return stack.pop()
 }
 
-func Parse(query string) Node {
+// Parse parses query into the binary tree
+func Parse(query string) *Node {
 	return constructBinaryTree(parseSearchQuery(tokenize(query)))
 }
