@@ -2,6 +2,16 @@ package textquery
 
 import "strings"
 
+const (
+	AND              = "AND"
+	OR               = "OR"
+	NOT              = "NOT"
+	fieldDelimiter   = ":"
+	leftParen        = "("
+	rightParen       = ")"
+	replaceDelimiter = "_-_-"
+)
+
 var (
 	operatorReplacements = []string{
 		AND, formatReplacement(AND),

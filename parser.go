@@ -3,14 +3,6 @@ package textquery
 type associativity int8
 
 const (
-	AND              = "AND"
-	OR               = "OR"
-	NOT              = "NOT"
-	fieldDelimiter   = ":"
-	leftParen        = "("
-	rightParen       = ")"
-	replaceDelimiter = "_-_-"
-
 	right associativity = 1
 	left  associativity = 2
 )
