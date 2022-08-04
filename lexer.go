@@ -50,14 +50,19 @@ var (
 
 // Token ...
 type Token struct {
-	Key      string
+	Data     string
 	Field    string
 	Operator string
 	Modifier string
 }
 
 func (t *Token) isOperator() bool {
-	return t.Key == AND || t.Key == OR || t.Key == NOT
+	switch t.Data {
+	case AND, OR, NOT:
+		return true
+	default:
+		return false
+	}
 }
 
 func (t *Token) isOperand() bool {
@@ -69,11 +74,11 @@ func (t *Token) isParen() bool {
 }
 
 func (t *Token) isOpenParen() bool {
-	return t.Key == leftParen
+	return t.Data == leftParen
 }
 
 func (t *Token) isCloseParen() bool {
-	return t.Key == rightParen
+	return t.Data == rightParen
 }
 
 // hasFieldDelimiter checks if the source string has a delimiter
@@ -116,7 +121,7 @@ func tokenize(query string) []*Token {
 	for _, token := range tokenizeQueryByOperators(query) {
 
 		if !hasFieldDelimiter(token) {
-			tokens = append(tokens, &Token{Key: token})
+			tokens = append(tokens, &Token{Data: token})
 			continue
 		}
 
@@ -124,7 +129,7 @@ func tokenize(query string) []*Token {
 		fieldParts := tokenizeFieldParts(token)
 		if len(fieldParts) == 6 {
 			tokens = append(tokens, &Token{
-				Key:      fieldParts[5],
+				Data:     fieldParts[5],
 				Field:    fieldParts[0],
 				Operator: fieldParts[2],
 			})
@@ -134,7 +139,7 @@ func tokenize(query string) []*Token {
 		// field{modifier}[precedence]:value
 		if len(fieldParts) == 9 {
 			tokens = append(tokens, &Token{
-				Key:      fieldParts[8],
+				Data:     fieldParts[8],
 				Field:    fieldParts[0],
 				Operator: fieldParts[5],
 				Modifier: fieldParts[2],

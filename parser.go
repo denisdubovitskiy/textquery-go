@@ -1,5 +1,7 @@
 package textquery
 
+import "strings"
+
 type associativity int8
 
 const (
@@ -7,19 +9,46 @@ const (
 	left  associativity = 2
 )
 
-type (
-	// Node is a binary tree node
-	Node struct {
-		Key   *Token
-		Left  *Node
-		Right *Node
+// Node is a binary tree node
+type Node struct {
+	Key   *Token
+	Left  *Node
+	Right *Node
+}
+
+// Match matches a string against query.
+func (n *Node) Match(s string) bool {
+	if s == "" || n == nil {
+		return false
 	}
 
-	precedence struct {
-		precedence    int
-		associativity associativity
+	l := n.Left.Match(s)
+	r := n.Right.Match(s)
+
+	// NOT corner case
+	if n.Right != nil &&
+		n.Right.Key != nil &&
+		n.Right.Key.isOperator() &&
+		n.Right.Key.Data == NOT {
+		r = !n.Right.Right.Match(s)
 	}
-)
+
+	// Operator
+	switch n.Key.Data {
+	case AND:
+		return l && r
+	case OR:
+		return l || r
+	}
+
+	// Operand
+	return strings.Contains(s, n.Key.Data)
+}
+
+type precedence struct {
+	precedence    int
+	associativity associativity
+}
 
 var precedences = map[string]precedence{
 	NOT: {precedence: 3, associativity: right},
@@ -28,8 +57,8 @@ var precedences = map[string]precedence{
 }
 
 func hasPrecedence(a, b *Token) bool {
-	opA := precedences[a.Key]
-	opB := precedences[b.Key]
+	opA := precedences[a.Data]
+	opB := precedences[b.Data]
 
 	isLeftAssociative := opB.associativity == left && opA.precedence >= opB.precedence
 	isRightAssociative := opB.associativity == right && opA.precedence > opB.precedence
@@ -109,7 +138,7 @@ func constructBinaryTree(reverseNotation []*Token) *Node {
 		right := stack.pop()
 
 		// NOT nodes have only right leaf
-		if token.Key == NOT {
+		if token.Data == NOT {
 			stack.push(&Node{Key: token, Right: right})
 			continue
 		}
@@ -128,5 +157,8 @@ func constructBinaryTree(reverseNotation []*Token) *Node {
 
 // Parse parses query into the binary tree
 func Parse(query string) *Node {
+	if query == "" {
+		return nil
+	}
 	return constructBinaryTree(parseSearchQuery(tokenize(query)))
 }
