@@ -1,6 +1,8 @@
 package textquery
 
-import "strings"
+import (
+	"strings"
+)
 
 const (
 	// AND ...
@@ -98,6 +100,12 @@ func replace(query string, replacer *strings.Replacer) []string {
 		if trimmed == "" {
 			continue
 		}
+
+		// exact match support
+		if strings.HasPrefix(trimmed, `"`) && strings.HasSuffix(trimmed, `"`) {
+			trimmed = trimmed[1 : len(trimmed)-1]
+		}
+
 		tokens = append(tokens, trimmed)
 	}
 
@@ -119,7 +127,6 @@ func tokenize(query string) []*Token {
 	var tokens []*Token
 
 	for _, token := range tokenizeQueryByOperators(query) {
-
 		if !hasFieldDelimiter(token) {
 			tokens = append(tokens, &Token{Data: token})
 			continue
