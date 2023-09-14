@@ -23,7 +23,7 @@ func (n *Node) Match(s string) bool {
 	}
 
 	l := n.Left.Match(s)
-	r := n.Right.Match(s)
+	var r bool
 
 	// NOT corner case
 	if n.Right != nil &&
@@ -31,6 +31,8 @@ func (n *Node) Match(s string) bool {
 		n.Right.Key.isOperator() &&
 		n.Right.Key.Data == NOT {
 		r = !n.Right.Right.Match(s)
+	} else {
+		r = n.Right.Match(s)
 	}
 
 	// Operator
