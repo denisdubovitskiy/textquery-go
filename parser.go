@@ -32,6 +32,10 @@ func (n *Node) Match(s string) bool {
 		n.Right.Key.Data == NOT {
 		r = !n.Right.Right.Match(s)
 	} else {
+		if n.Key.Data == NOT {
+			return !n.Right.Match(s)
+		}
+
 		r = n.Right.Match(s)
 	}
 

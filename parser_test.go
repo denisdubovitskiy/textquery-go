@@ -68,6 +68,16 @@ func TestMatch(t *testing.T) {
 			input: "a b d",
 			match: false,
 		},
+		{
+			query: "NOT b",
+			input: "a c d",
+			match: true,
+		},
+		{
+			query: "NOT b",
+			input: "a b c d",
+			match: false,
+		},
 	}
 
 	for _, tc := range cases {
